@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Dashboard</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Flatpickr for date/time picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        :root {
+            --bs-body-bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --primary-color: #0d6efd;
+        }
+        body {
+            background-color: var(--bs-body-bg);
+            padding-top: 2rem;
+        }
+        .video-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 1.5rem;
+            border-radius: 10px;
+            overflow: hidden;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .video-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        .video-title {
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 0.5rem;
+        }
+        .video-meta {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .action-btn {
+            min-width: 120px;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        /* Video Player Overlay */
+        .video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .video-container {
+            width: 80%;
+            max-width: 1200px;
+            position: relative;
+        }
+        .video-player {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background-color: #000;
+        }
+        .close-btn {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+        }
+        
+        /* Filter controls */
+        .filter-controls {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .filter-group {
+            margin-right: 15px;
+        }
+        .date-input {
+            max-width: 200px;
+        }
+        
+        @media (max-width: 768px) {
+            .action-btn {
+                width: 100%;
+                margin-right: 0;
+            }
+            .video-container {
+                width: 95%;
+            }
+            .filter-group {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            .date-input {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="display-5 fw-bold">
+                    <i class="fas fa-video me-2"></i>Video Logs
+                </h1>
+                <div class="d-flex">
+                    <input type="text" class="form-control me-2" placeholder="Search videos..." id="searchInput">
+                    <button class="btn btn-outline-secondary" id="filterToggle">
+                        <i class="fas fa-filter me-1"></i> Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="filter-controls mb-4" id="filterControls" style="display: none;">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="d-flex flex-wrap align-items-center">
+                        <div class="filter-group me-3 mb-2">
+                            <label class="form-label">From Date</label>
+                            <input type="text" class="form-control date-input" id="dateFrom" placeholder="Select start date">
+                        </div>
+                        <div class="filter-group me-3 mb-2">
+                            <label class="form-label">To Date</label>
+                            <input type="text" class="form-control date-input" id="dateTo" placeholder="Select end date">
+                        </div>
+                        <div class="filter-group mb-2">
+                            <button class="btn btn-primary" id="applyFilters">
+                                <i class="fas fa-check me-1"></i> Apply
+                            </button>
+                            <button class="btn btn-outline-secondary ms-2" id="resetFilters">
+                                <i class="fas fa-undo me-1"></i> Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex flex-wrap align-items-center">
+                        <div class="filter-group me-3 mb-2">
+                            <label class="form-label">Sort By</label>
+                            <select class="form-select" id="sortBy">
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                                <option value="name_asc">Name (A-Z)</option>
+                                <option value="name_desc">Name (Z-A)</option>
+                                <option value="size_asc">Size (Smallest)</option>
+                                <option value="size_desc">Size (Largest)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video List -->
+        <div class="row" id="video-list">
+            {% for video in videos %}
+            <div class="col-lg-6 col-xl-4 mb-4">
+                <div class="card video-card h-100" 
+                     data-name="{{ video.name|lower }}" 
+                     data-date="{{ video.modified }}" 
+                     data-size="{{ video.size }}">
+                    <div class="card-body">
+                        <h5 class="video-title card-title">
+                            <i class="fas fa-film me-2"></i>{{ video.name }}
+                        </h5>
+                        <div class="video-meta card-text mb-3">
+                            <span class="badge bg-light text-dark me-2">
+                                <i class="fas fa-database me-1"></i>{{ video.size }} MB
+                            </span>
+                            <span class="badge bg-light text-dark video-date">
+                                <i class="far fa-clock me-1"></i>{{ video.modified }}
+                            </span>
+                        </div>
+                        <div class="d-flex flex-wrap">
+                            <a href="{{ url_for('play', filename=video.filename) }}" class="btn btn-primary action-btn">
+                                <i class="fas fa-play me-1"></i> VLC
+                            </a>
+                            <button class="btn btn-success action-btn stream-btn" data-video-url="{{ url_for('stream', filename=video.filename) }}">
+                                <i class="fas fa-play-circle me-1"></i> Stream
+                            </button>
+                            <a href="{{ url_for('convert', filename=video.filename) }}" class="btn btn-warning action-btn">
+                                <i class="fas fa-exchange-alt me-1"></i> Convert
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Empty State -->
+        {% if not videos %}
+        <div class="text-center py-5">
+            <i class="fas fa-video-slash fa-4x mb-3 text-muted"></i>
+            <h3 class="text-muted">No videos found</h3>
+            <p class="text-muted">Upload some videos to get started</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Video Player Overlay -->
+    <div class="video-overlay" id="videoOverlay">
+        <div class="video-container">
+            <span class="close-btn" id="closeBtn">&times;</span>
+            <video controls class="video-player" id="videoPlayer">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Flatpickr for date/time picker -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        // Initialize date pickers
+        flatpickr("#dateFrom", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            time_24hr: true
+        });
+        flatpickr("#dateTo", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            time_24hr: true
+        });
+
+        // Toggle filter controls
+        document.getElementById('filterToggle').addEventListener('click', function() {
+            const filterControls = document.getElementById('filterControls');
+            filterControls.style.display = filterControls.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Search and filter functionality
+        function filterVideos() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            const sortBy = document.getElementById('sortBy').value;
+            
+            const videoCards = document.querySelectorAll('.video-card');
+            let anyVisible = false;
+            
+            videoCards.forEach(card => {
+                const title = card.getAttribute('data-name');
+                const dateStr = card.querySelector('.video-date').textContent.replace('Last modified: ', '').trim();
+                const videoDate = new Date(dateStr);
+                const size = parseFloat(card.getAttribute('data-size'));
+                
+                // Check search term
+                const matchesSearch = title.includes(searchTerm);
+                
+                // Check date range
+                let matchesDate = true;
+                if (dateFrom) {
+                    const fromDate = new Date(dateFrom);
+                    matchesDate = matchesDate && videoDate >= fromDate;
+                }
+                if (dateTo) {
+                    const toDate = new Date(dateTo);
+                    matchesDate = matchesDate && videoDate <= toDate;
+                }
+                
+                // Show/hide based on filters
+                if (matchesSearch && matchesDate) {
+                    card.parentElement.style.display = 'block';
+                    anyVisible = true;
+                } else {
+                    card.parentElement.style.display = 'none';
+                }
+            });
+            
+            // Sort videos
+            sortVideoList(sortBy);
+            
+            // Show empty state if no videos match
+            document.getElementById('video-list').style.display = anyVisible ? 'flex' : 'none';
+        }
+        
+        // Sort videos based on selected option
+        function sortVideoList(sortBy) {
+            const videoList = document.getElementById('video-list');
+            const videos = Array.from(videoList.children);
+            
+            videos.sort((a, b) => {
+                const aCard = a.querySelector('.video-card');
+                const bCard = b.querySelector('.video-card');
+                
+                const aName = aCard.getAttribute('data-name');
+                const bName = bCard.getAttribute('data-name');
+                
+                const aDateStr = aCard.querySelector('.video-date').textContent.replace('Last modified: ', '').trim();
+                const bDateStr = bCard.querySelector('.video-date').textContent.replace('Last modified: ', '').trim();
+                const aDate = new Date(aDateStr);
+                const bDate = new Date(bDateStr);
+                
+                const aSize = parseFloat(aCard.getAttribute('data-size'));
+                const bSize = parseFloat(bCard.getAttribute('data-size'));
+                
+                switch(sortBy) {
+                    case 'newest':
+                        return bDate - aDate;
+                    case 'oldest':
+                        return aDate - bDate;
+                    case 'name_asc':
+                        return aName.localeCompare(bName);
+                    case 'name_desc':
+                        return bName.localeCompare(aName);
+                    case 'size_asc':
+                        return aSize - bSize;
+                    case 'size_desc':
+                        return bSize - aSize;
+                    default:
+                        return bDate - aDate;
+                }
+            });
+            
+            // Re-append sorted videos
+            videos.forEach(video => videoList.appendChild(video));
+        }
+
+        // Event listeners for filtering
+        document.getElementById('searchInput').addEventListener('input', filterVideos);
+        document.getElementById('dateFrom').addEventListener('change', filterVideos);
+        document.getElementById('dateTo').addEventListener('change', filterVideos);
+        document.getElementById('sortBy').addEventListener('change', filterVideos);
+        document.getElementById('applyFilters').addEventListener('click', filterVideos);
+        
+        // Reset filters
+        document.getElementById('resetFilters').addEventListener('click', function() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            document.getElementById('sortBy').value = 'newest';
+            filterVideos();
+        });
+
+        // Initialize with default sorting
+        sortVideoList('newest');
+
+        // Video streaming overlay functionality
+        const videoOverlay = document.getElementById('videoOverlay');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const closeBtn = document.getElementById('closeBtn');
+        const streamBtns = document.querySelectorAll('.stream-btn');
+
+        streamBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const videoUrl = this.getAttribute('data-video-url');
+                videoPlayer.src = videoUrl;
+                videoOverlay.style.display = 'flex';
+                videoPlayer.play().catch(e => {
+                    console.error("Autoplay failed:", e);
+                    videoPlayer.muted = true;
+                    videoPlayer.play();
+                });
+            });
+        });
+
+        closeBtn.addEventListener('click', function() {
+            videoPlayer.pause();
+            videoPlayer.src = '';
+            videoOverlay.style.display = 'none';
+        });
+
+        // Close overlay when clicking outside the video
+        videoOverlay.addEventListener('click', function(e) {
+            if (e.target === videoOverlay) {
+                videoPlayer.pause();
+                videoPlayer.src = '';
+                videoOverlay.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
